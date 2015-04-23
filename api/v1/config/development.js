@@ -33,5 +33,9 @@ module.exports={
             user: 'EMAIL_ID',
             pass: 'PASSWORD'
         }
+    },
+    api:{
+        version:'v1',
+        last_updated:'23.04.2015 1144GMT'
     }
 };
