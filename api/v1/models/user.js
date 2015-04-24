@@ -222,8 +222,7 @@ var User =restful.model('user',UserSchema)
         .removeOptions({
             sort: 'field -created_at'
         })
-        .includeSchema(true),
-    response={};
+        .includeSchema(true);
 User.methods([
     'get',
     'post',

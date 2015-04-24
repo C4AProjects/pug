@@ -5,12 +5,13 @@ var express = require('express'),
     mongoose = require('mongoose'),
     app = module.exports = express(),
     bodyParser=require('body-parser'),
-//multer = require('multer'),
+    userRoute=require('./users'),
+    memberRoute=require('./members'),
+   //multer = require('multer'),
     moment = require('moment'),
-    user=require('../models/user'),
     fs = require('fs'),
     morgan = require('morgan'),
-   // pkg=require('../package.json'),
+    pkg=require('../package.json'),
     uuid = require('node-uuid'), //to generate uuid
     config=require('../config/'+app.get('env'));
 
@@ -29,10 +30,14 @@ app.use(bodyParser.json()); // parse application/json
 app.use(express.query());
 //app.set('view engine', 'jade');
 
-
 app.mongoose = mongoose; // used for testing
 
-var connection=mongoose.connect(config.db); //connect to mongo
+try {
+    var connection = mongoose.connect(config.db); //connect to mongo
+    console.log(moment().format('ddd') + ' ' + moment().format() + ' SYSTEM:-> PUG api connected to db server at %s ', config.db);
+}catch(error){
+    console.log(moment().format('ddd') + ' ' + moment().format() + ' SYSTEM:->Error...PUG api failed to connect to db server at %s ', config.db);
+}
 
 
 //register root endpoint
@@ -42,20 +47,25 @@ var rootEndPoint={
     documentation:pkg.documentation,
     modified:config.api.last_updated
 };
+app.get('/v1',function(req,res){
+    res.send(rootEndPoint);
+});
+
 app.get('/',function(req,res){
     res.send(rootEndPoint);
 });
 
-//only run this in development environment
-if(app.get('env')!=='production'){
-    require('pow-mongoose-fixtures').load('../data', connection); //preload db with test data
+//only run this in test environment
+if(app.get('env')==='test'){
+   require('pow-mongoose-fixtures').load('../data', connection); //preload db with test data
 }
 
-//register all models here for now
+//register all other custom routes
 /**
- * Todo JohnAdamsy ;1. better versioning method. 2. Also create modular routes for each available model 3. Custom search other than than the available filters
+ * Todo JohnAdamsy ;1. better versioning method. 2. Also create modular routes for each available model [done!] 3. Custom search other than than the available filters
  * */
-user.register(app, '/v1/users');
+userRoute.registerRoute(app);
+memberRoute.registerRoute(app);
 
 //config.http.port=3001;
 if (!module.parent) {

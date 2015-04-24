@@ -3,16 +3,18 @@
  * @param m
  * @returns {{Member: *}}
  */
-module.exports = function (m) {
-    var mongoose = m || require('mongoose'), Schema = m.base.Schema, CallbackQuery = require('../../lib/callback-query')
-        , uniqueValidator = require('mongoose-unique-validator');
+    var restful=require('node-restful'),
+        mongoose = require('mongoose'),
+        uniqueValidator = require('mongoose-unique-validator'),
+        emailSchemaType=require('mongoose-type-email'),
+        ObjectId=mongoose.Schema.ObjectId,
+        Email=mongoose.SchemaTypes.Email,
+        bio_max_length = [320, 'The value of `{PATH}` (`{VALUE}`) exceeds the maximum allowed ({MAXLENGTH}) characters.']; //custom validator
 
-    var bio_max_length = [320, 'The value of `{PATH}` (`{VALUE}`) exceeds the maximum allowed ({MAXLENGTH}) characters.']; //custom validator
-
-    var MemberSchema = new Schema({
-        user:[{ type: Schema.ObjectId, ref: 'User' }], //each member has 1 user account
+    var MemberSchema = mongoose.Schema({
+        user:[{ type: ObjectId, ref: 'User' }], //each member has 1 user account
         account_name:{type:String,required:true,index:true}, //your alias or display name...super editable.
-        email:{type:String,required:true,index:true,unique: true,lowercase:true}, //add email validation later
+        email:{type:Email,required:true,index:true,unique: true,lowercase:true}, //add email validation later
         full_name:{type:String,default:null},
         dob:{type:Date,default:'01/01/1970'},
         gender:{type:String,default:null},
@@ -23,7 +25,8 @@ module.exports = function (m) {
         city:{type:String,default:null},
         state:{type:String,default:null},
         profile_avatar:{type:String,default:null},
-        profile_extra:{followers:{type:[[{ type: Schema.ObjectId, ref: 'Member' }]],default:[]},following:{type:[[{ type: Schema.ObjectId, ref: 'Member' }]],default:[]}},
+        profile_extra:{followers:[{ type: ObjectId, ref: 'Member' }],following:[{ type: ObjectId, ref: 'Member' }]},
+        //profile_extra:{followers:{[{ type: ObjectId, ref: 'Member' }]],default:[]},following:{type:[[{ type: ObjectId, ref: 'Member' }]],default:[]},
         rating:{poor:{type:Number,default:0},medium:{type:Number,default:0},good:{type:Number,default:0},great:{type:Number,default:0}},
         created_at: {type:Date,default:Date.now},
         updated_at: {type:Date,default:Date.now}
@@ -94,7 +97,6 @@ module.exports = function (m) {
     }
 
 
-
     /**
      * Shows how to create a raw mongodb query and use it within mers.  This
      * could also be used to use a non mongodb data source.
@@ -117,7 +119,13 @@ module.exports = function (m) {
         return this.find({_id: query$id}).exec();
     }
 
+var Member =restful.model('member',MemberSchema)
+    .removeOptions({
+        sort: 'field -created_at'
+    })
+    .includeSchema(true);
 
-    //var Member = mongoose.model('Member', MemberSchema);return Member;
-    return {Member: m.model('Member', MemberSchema)};
-};
+
+//module.exports = mongoose.model('Member', MemberSchema);
+mongoose.model('Member', MemberSchema);
+exports = module.exports = Member;
