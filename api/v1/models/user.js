@@ -4,6 +4,7 @@
  * @returns Module
  */
 var restful=require('node-restful'),
+    CUSTOM_ERROR=require('../utils/errors');
     mongoose = require('mongoose'),
     uniqueValidator = require('mongoose-unique-validator'),
     bcrypt = require('bcrypt'),
@@ -68,7 +69,9 @@ UserSchema.pre('save', function (next) {
     user.pug_credentials.username=user.pug_credentials.username.toLowerCase();
     // next();
 
-// only hash the password if it has been modified (or is new)
+    //user.updated_at=Date.now;
+
+  // only hash the password if it has been modified (or is new)
     if (!user.isModified('pug_credentials.password')) return next();
 
 // generate a salt
@@ -86,6 +89,29 @@ UserSchema.pre('save', function (next) {
     });
 
 
+});
+
+var hashPassword=function(req,res,next){
+    bcrypt.genSalt(SALT_WORK_FACTOR, function(err, salt) {
+        if (err) return next(err);
+
+        // hash the password using our new salt
+        bcrypt.hash(req.body.password, salt, function(err, hash) {
+            if (err) return next(err);
+
+            // override the clear text password with the hashed one
+            req.body.password = hash;
+            next();
+        });
+    });
+};
+
+/**
+ * Some post-save functions
+ * */
+UserSchema.post('save', function (doc) {
+    console.log(LOG_TAG+' SECURITY LOG: -> %s has been saved', doc._id);
+    next();
 });
 
 
@@ -143,13 +169,8 @@ UserSchema.statics.getAuthenticated = function(username, password, cb) {
 };
 
 /**
- * @Todo JohnAdamsy hide {password,loginAttempts,lockUntil} field on response object to client
+ * @Todo JohnAdamsy hide {password,loginAttempts,lockUntil} field on response object to client..[done!]
  *
- * */
-
-
-/**
- * Some post-save functions
  * */
 
 
@@ -171,13 +192,6 @@ UserSchema.statics.findUserLike = function findUserLike(q, username) {
  return this.find({comments: new RegExp(search, 'i')});
  }*/
 
-//compare a password. Useful for user login with a pug password
-/* UserSchema.methods.comparePassword = function(candidatePassword, cb) {
- bcrypt.compare(candidatePassword, this.pug_credentials.password, function(err, isMatch) {
- if (err) return cb(err);
- cb(null, isMatch);
- });
- };*/
 
 //transform schema object
 UserSchema.set('toJSON', {
@@ -189,33 +203,78 @@ UserSchema.set('toJSON', {
             name:ret.pug_credentials.username,
             user_type:ret.user_type
         };
-        return retJson;
+        return ret; /**@ToDo JohnAdamsy return the transformed object {retJson}*/
     }
 });
 
 var validateSearchTerm = function(req, res, next) {
-    if (!req.body.username || !req.body.password)
-        var response={
-            status:400,
-            code:1024,
-            message:'Validation Failed',
-            errors:[{
-                "code":5402,
-                "field":"password",
-                "message":"Password cannot be blank"
-            },
-                {"code":5401,
-                    "field":"username",
-                    "message":"Username cannot be blank"}]
-        };
-
-    return next(response); // We can also throw an error from a before route
-    req.body.username = req.body.username.toLowerCase();
+    var username=req.body.username,pwd=req.body.password;
+    if (!username) return res.send(CUSTOM_ERROR.MISSING_USERNAME); //throw missing username error
+    if (!pwd) return res.send(CUSTOM_ERROR.MISSING_PASSWORD); //throw missing password error
+    req.body.username =username.toLowerCase();
     return next(); // Call the handler
 };
 
-//var transformObject=function(req,)
+//middleware before post
+var beforePost = function(req, res, next) {
+    var username=req.body.username,pwd=req.body.password,userObject={pug_credentials:{username:'',password:''}};
+    if (!username) return res.send(CUSTOM_ERROR.MISSING_USERNAME); //throw missing username error
+    if (!pwd) return res.send(CUSTOM_ERROR.MISSING_PASSWORD); //throw missing password error
+    req.body.username =username.toLowerCase();
 
+    userObject.pug_credentials.username=req.body.username;
+    userObject.pug_credentials.password=req.body.password;
+    //console.log(userObject);
+    req.body=userObject;
+    return next(); // Call the handler
+};
+
+//middleware before put
+var beforePut=function(req,res,next) {
+    var username = req.body.username, pwd = req.body.password, userObject = {
+        pug_credentials: {
+            username: '',
+            password: ''
+        }, updated_at: Date.now()
+    };
+
+    if (pwd) {
+        bcrypt.genSalt(SALT_WORK_FACTOR, function (err, salt) {
+            if (err) return next(err);
+            console.log('begin hashing');
+            // hash the password using our new salt
+            bcrypt.hash(pwd, salt, function (err, hash) {
+                if (err) return next(err);
+
+                if(username)
+                    userObject.pug_credentials.username = req.body.username;
+
+                // override the clear text password with the hashed one
+                //req.body.password = hash;
+                userObject.pug_credentials.password = hash;
+
+                console.log('hashed 1:' + hash);
+                req.body = userObject;
+                next();
+            });
+        });
+    }else{
+        userObject.pug_credentials.username = req.body.username;
+        console.log('hashed 1:' + hash);
+        req.body = userObject;
+        next();
+    }
+
+
+    /*if (username){
+        console.log('hashed 2:'+req.body.password);
+        req.body.username = username.toLowerCase();
+        userObject.pug_credentials.username = req.body.username;
+
+        //return next();
+    }*/
+
+};
 
 
 var User =restful.model('user',UserSchema)
@@ -230,19 +289,17 @@ User.methods([
     'delete'])
     .route('login', { //This should be exposed as /v1/user/login
         handler: function (req, res, next) {
-            // User.Model.find({'pug_credentials.username': new RegExp(search, 'i')}, function(err, list) {
-            //console.log(LOG_TAG+' DEBUG:->'+req.body.username);
             User.getAuthenticated(req.body.username, req.body.password, function (err, user, reason) {
                 if (err) {
-                    console.log(LOG_TAG+'/login:->internal error');
-                    return next({status: 500, code: 1010, message: 'Something went wrong on our end. Try again'}); // Error handling
+                    console.log(LOG_TAG+'/login:->internal error'+'---details: '+err.message);
+                    return next(CUSTOM_ERROR.INTERNAL_SERVER_ERROR); // Error handling
                 }
 
                 if (user) {
                     //user is authenticated
                     //res.status = 200;
                     console.log(LOG_TAG+'/login:->login success');
-                    delete user.pug_credentials.password;
+                    //delete user.pug_credentials.password;
                     return res.send({status:200,data:user});
                 } else {
                     //user could not be logged in
@@ -251,21 +308,12 @@ User.methods([
                     switch(reason){
                         case reasons.NOT_FOUND:
                         case reasons.PASSWORD_INCORRECT:
-                            res.status = 400;
-                            response={
-                                status: 400,
-                                code: 1025,
-                                message: 'Invalid Password/Username combination'
-                            };
+                            var response=CUSTOM_ERROR.WRONG_USERNAME_PASSWORD_COMBINATION;
                             console.log(LOG_TAG+'/login:->login failed. Reason: '+JSON.stringify(response));
                             return res.send(response);
                             break;
                         case reasons.MAX_ATTEMPTS:
-                            response={
-                                status: 400,
-                                code: 1026,
-                                message: 'Account has been temporarily locked'
-                            }
+                            response=CUSTOM_ERROR.ACCOUNT_TEMPORARILY_LOCKED;
                             console.log(LOG_TAG+'/login:->login failed. Reason: '+JSON.stringify(response));
                             return res.send(response);
                             break;
@@ -279,9 +327,9 @@ User.methods([
         detail: false, // detail makes sure we have one model to work on, in this case we don't need from the client
         methods: ['post'] // only respond to GET requests via this end point
     })
-    .before('post', noop)
+    .before('post', beforePost)
     .after('post', noop)
-    .before('put', noop)
+    .before('put', beforePut)
     .after('put', noop)
     .before('login', validateSearchTerm); //before searching ensure we have a search item
 //.after('login', after);
