@@ -7,11 +7,12 @@ var express = require('express'),
     bodyParser=require('body-parser'),
     userRoute=require('./users'),
     memberRoute=require('./members'),
-   //multer = require('multer'),
+    defaultRoute=require('../controllers/index'),
+//multer = require('multer'),
     moment = require('moment'),
     fs = require('fs'),
     morgan = require('morgan'),
-    pkg=require('../package.json'),
+    //pkg=require('../package.json'),
     uuid = require('node-uuid'), //to generate uuid
     config=require('../config/'+app.get('env'));
 
@@ -36,36 +37,32 @@ try {
     var connection = mongoose.connect(config.db); //connect to mongo
     console.log(moment().format('ddd') + ' ' + moment().format() + ' SYSTEM:-> PUG api connected to db server at %s ', config.db);
 }catch(error){
-    console.log(moment().format('ddd') + ' ' + moment().format() + ' SYSTEM:->Error...PUG api failed to connect to db server at %s ', config.db);
+    console.log(moment().format('ddd') + ' ' + moment().format() + ' SYSTEM:->PUG api failed to connect to db server at %s ', config.db);
 }
 
 
 //register root endpoint
-var rootEndPoint={
-    version:config.api.version,
-    description:pkg.description,
-    documentation:pkg.documentation,
-    modified:config.api.last_updated
-};
-app.get('/v1',function(req,res){
+app.route('/').get(defaultRoute.rootEndPoint);
+app.route('/v1').get(defaultRoute.rootEndPoint);
+/*app.get('/v1',function(req,res){
     res.send(rootEndPoint);
 });
 
 app.get('/',function(req,res){
     res.send(rootEndPoint);
-});
+});*/
 
 //only run this in test environment
 if(app.get('env')==='test'){
-   require('pow-mongoose-fixtures').load('../data', connection); //preload db with test data
+    require('pow-mongoose-fixtures').load('../data', connection); //preload db with test data
 }
 
 //register all other custom routes
 /**
  * Todo JohnAdamsy ;1. better versioning method. 2. Also create modular routes for each available model [done!] 3. Custom search other than than the available filters
  * */
-userRoute.registerRoute(app);
-memberRoute.registerRoute(app);
+//userRoute.registerRoute(app);
+//memberRoute.registerRoute(app);
 
 //config.http.port=3001;
 if (!module.parent) {

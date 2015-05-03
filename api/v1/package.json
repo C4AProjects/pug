@@ -2,7 +2,7 @@
   "name": "pug-api",
   "description": "A simple to use universal mobile application that allows amateur to semi-pro basketball players to coordinate, track stats, and keep score of pickup basketball games around the world",
   "documentation": "http://docs.pug.apiary.io",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "author": "Opiyo Adams <adams.opiyo@gmail.com>",
   "private": true,
   "dependencies": {
@@ -35,5 +35,9 @@
   "repository": {
     "type": "git",
     "url": "git@github.com:C4AProjects/pug.git"
+  },
+  "api":{
+    "version":"v1",
+    "last_updated":"3rd May, 2015 1130GMT"
   }
 }
