@@ -3,9 +3,9 @@
  * @param null
  * @returns Module
  */
-var restful=require('node-restful'),
-    CUSTOM_ERROR=require('../utils/errors');
+var CUSTOM_ERROR=require('../utils/errors'),
     mongoose = require('mongoose'),
+    Schema=mongoose.Schema,
     uniqueValidator = require('mongoose-unique-validator'),
     bcrypt = require('bcrypt'),
     moment=require('moment'),
@@ -14,7 +14,7 @@ var restful=require('node-restful'),
     MAX_LOGIN_ATTEMPTS = 5, // max of 5 attempts
     LOCK_TIME = (1/12) * 60 * 60 * 1000; //lock account for 5 minutes
 
-var UserSchema=mongoose.Schema({
+var UserSchema=new Schema({
     user_type: {type: String, default: 'player'},
     pug_credentials: {
         username: {type: String, required: true, index: true, unique: true,lowercase:true},
@@ -30,7 +30,7 @@ var UserSchema=mongoose.Schema({
     updated_at: {type: Date, default: Date.now},
     loginAttempts: { type: Number, required: true, default: 0 },
     lockUntil: { type: Number,default:null }
-})
+});
 
 
 UserSchema.methods.comparePassword = function(candidatePassword, cb) {
@@ -38,7 +38,7 @@ UserSchema.methods.comparePassword = function(candidatePassword, cb) {
         if (err) return cb(err);
         cb(null, isMatch);
     });
-}
+};
 UserSchema.methods.incLoginAttempts = function(cb) {// if we have a previous lock that has expired, restart at 1
     if (this.lockUntil && this.lockUntil < Date.now()) {
         return this.update({
@@ -53,7 +53,7 @@ UserSchema.methods.incLoginAttempts = function(cb) {// if we have a previous loc
         updates.$set = { lockUntil: Date.now() + LOCK_TIME };
     }
     return this.update(updates, cb);
-}
+};
 UserSchema.plugin(uniqueValidator,{ message: 'Username {VALUE} is already taken.'});
 
 UserSchema.virtual('isLocked').get(function() {// check for a future lockUntil timestamp
@@ -185,7 +185,7 @@ UserSchema.statics.findUserLike = function findUserLike(q, username) {
         return this.find({_id: null});
 
     return this.find({'pug_credentials.username': new RegExp(search, 'i')});
-}
+};
 
 /*UserSchema.methods.findCommentsLike = function (q, term) {
  var search = term || q.title;
@@ -207,6 +207,6 @@ UserSchema.set('toJSON', {
     }
 });
 
-
-//module.exports = mongoose.model('User', UserSchema);
 mongoose.model('User', UserSchema);
+//module.exports =  UserSchema;
+//mongoose.model('User', UserSchema);

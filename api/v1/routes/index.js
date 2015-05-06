@@ -5,9 +5,9 @@ var express = require('express'),
     mongoose = require('mongoose'),
     app = module.exports = express(),
     bodyParser=require('body-parser'),
-    userRoute=require('./users'),
     memberRoute=require('./members'),
     defaultRoute=require('../controllers/index'),
+    userRoute=require('./users'),
 //multer = require('multer'),
     moment = require('moment'),
     fs = require('fs'),
@@ -44,13 +44,7 @@ try {
 //register root endpoint
 app.route('/').get(defaultRoute.rootEndPoint);
 app.route('/v1').get(defaultRoute.rootEndPoint);
-/*app.get('/v1',function(req,res){
-    res.send(rootEndPoint);
-});
 
-app.get('/',function(req,res){
-    res.send(rootEndPoint);
-});*/
 
 //only run this in test environment
 if(app.get('env')==='test'){
@@ -61,7 +55,7 @@ if(app.get('env')==='test'){
 /**
  * Todo JohnAdamsy ;1. better versioning method. 2. Also create modular routes for each available model [done!] 3. Custom search other than than the available filters
  * */
-//userRoute.registerRoute(app);
+userRoute.registerRoute(app);
 //memberRoute.registerRoute(app);
 
 //config.http.port=3001;

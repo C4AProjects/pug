@@ -2,11 +2,14 @@
  * Created by opips on 4/12/15.
  */
 /**
- * Add other custom end points specific to {{User Model}} here
+ *  Controller
+ *  Add other custom end points specific to {{User Model}} here
  * @Todo {JohnAdamsy} figure out best way to have the model routes implemented here. Bypassing all controllers in the interim
  * */
-var mongoose=require('mongoose'),
-    UserSchema=mongoose.model('User');
+var restful=require('node-restful'),
+    mongoose=require('mongoose'),
+    UserSchema=require('../models/user');
+
 var validateSearchTerm = function(req, res, next) {
     var username=req.body.username,pwd=req.body.password;
     if (!username) return res.send(CUSTOM_ERROR.MISSING_USERNAME); //throw missing username error
